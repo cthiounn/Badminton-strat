@@ -16,8 +16,8 @@ WORKDIR /app
 # Copier les fichiers
 COPY app.py requirements.txt /app/
 
-# Installer les dépendances Python sans cache pour réduire la taille
-RUN pip install --no-cache-dir -r requirements.txt
+# Installer les dépendances Python
+RUN pip install -r requirements.txt
 
 # Commande pour lancer l'application
 CMD ["streamlit", "run", "app.py","--server.port", "3838"]
