@@ -2,6 +2,8 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
 
+
+
 # =====================
 # CONFIG STREAMLIT
 # =====================
@@ -22,6 +24,13 @@ SERVICE_LONG_DOUBLE = 0.76
 # =====================
 # INTERFACE UTILISATEUR
 # =====================
+
+# Initialisation du volant dans session_state si pas encore défini
+if "volant_x" not in st.session_state:
+    st.session_state.volant_x = np.random.uniform(0.3, LONGUEUR - 0.3)
+if "volant_y" not in st.session_state:
+    st.session_state.volant_y = np.random.uniform(0.3, LARGEUR_DOUBLE - 0.3)
+
 col1, col2 = st.columns([1, 3])
 with col1:
     st.subheader("🎛️ Paramètres")
