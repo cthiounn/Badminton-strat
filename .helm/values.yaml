@@ -1,0 +1,9 @@
+shiny:
+  image:
+    repository: cthiounn/badminton-strat
+    tag: "latest"
+  ingress:
+    enabled: true
+    hostname: badminton-strat.lab.sspcloud.fr
+  probe:
+    enabled: false
