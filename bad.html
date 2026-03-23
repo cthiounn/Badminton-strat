@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Simulation tactique badminton</title>
+<style>
+canvas { border: 2px solid #000; background-color: #c2f0c2; display:block; margin-top:10px;}
+label { font-weight: bold; margin-right: 5px; }
+.player-select { margin-bottom: 10px; }
+button { margin-top:10px; padding:5px 10px; font-weight:bold; }
+</style>
+</head>
+<body>
+<h1>🏸 Simulation tactique de badminton</h1>
+
+<div id="controls">
+    <div class="player-select">A1 : 
+        <select id="A1">
+            <option value="droitier" selected>Droitier</option>
+            <option value="gaucher">Gaucher</option>
+        </select>
+    </div>
+    <div class="player-select">A2 : 
+        <select id="A2">
+            <option value="droitier" selected>Droitier</option>
+            <option value="gaucher">Gaucher</option>
+        </select>
+    </div>
+    <div class="player-select">B1 : 
+        <select id="B1">
+            <option value="droitier" selected>Droitier</option>
+            <option value="gaucher">Gaucher</option>
+        </select>
+    </div>
+    <div class="player-select">B2 : 
+        <select id="B2">
+            <option value="droitier" selected>Droitier</option>
+            <option value="gaucher">Gaucher</option>
+        </select>
+    </div>
+    <div>
+        Type de volant :
+        <select id="volantType">
+            <option value="haut">Haut</option>
+            <option value="à plat">À plat</option>
+            <option value="bas">Bas</option>
+        </select>
+    </div>
+    <button id="randomizeBtn">🔄 Placer aléatoirement</button>
+</div>
+
+<canvas id="canvas" width="800" height="400"></canvas>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+// Terrain
+const LONGUEUR = 13.4;
+const LARGEUR_DOUBLE = 6.1;
+const LARGEUR_SIMPLE = 5.18;
+const FILET_X = LONGUEUR/2;
+const SERVICE_COURT = 1.98;
+const SERVICE_LONG_DOUBLE = 0.76;
+const scaleX = canvas.width / LONGUEUR;
+const scaleY = canvas.height / LARGEUR_DOUBLE;
+
+// Joueurs
+const joueurs = [
+    {team:"A", x:2, y:1, droitier:true, color:"blue"},
+    {team:"A", x:2, y:5, droitier:true, color:"blue"},
+    {team:"B", x:11, y:1, droitier:true, color:"orange"},
+    {team:"B", x:11, y:5, droitier:true, color:"orange"}
+];
+
+// Volant
+const volant = {x:6.7, y:3, type:"haut", radius:0.2};
+
+// Drag
+let dragObject = null;
+let offsetX=0, offsetY=0;
+
+// Conversion mètre → pixel
+function pxX(x){ return x*scaleX; }
+function pxY(y){ return y*scaleY; }
+
+// Terrain
+function drawTerrain(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Extérieur double
+    ctx.strokeStyle="white";
+    ctx.lineWidth=2;
+    ctx.strokeRect(pxX(0), pxY(0), pxX(LONGUEUR), pxY(LARGEUR_DOUBLE));
+
+    // Simple
+    const marge = (LARGEUR_DOUBLE - LARGEUR_SIMPLE)/2;
+    ctx.strokeStyle="yellow";
+    ctx.strokeRect(pxX(0), pxY(marge), pxX(LONGUEUR), pxY(LARGEUR_SIMPLE));
+
+    // Filet
+    ctx.strokeStyle="white";
+    ctx.beginPath();
+    ctx.moveTo(pxX(FILET_X), 0);
+    ctx.lineTo(pxX(FILET_X), pxY(LARGEUR_DOUBLE));
+    ctx.stroke();
+
+    // Lignes de service
+    ctx.strokeStyle="white";
+    [[FILET_X - SERVICE_COURT, FILET_X + SERVICE_COURT], [SERVICE_LONG_DOUBLE, LONGUEUR - SERVICE_LONG_DOUBLE]].forEach(arr=>{
+        arr.forEach(x=>{
+            ctx.beginPath();
+            ctx.moveTo(pxX(x),0);
+            ctx.lineTo(pxX(x),pxY(LARGEUR_DOUBLE));
+            ctx.stroke();
+        });
+    });
+
+    // Ligne centrale
+    ctx.beginPath();
+    ctx.moveTo(0, pxY(LARGEUR_DOUBLE/2));
+    ctx.lineTo(pxX(LONGUEUR), pxY(LARGEUR_DOUBLE/2));
+    ctx.stroke();
+}
+
+// Joueurs
+function drawJoueurs(){
+    for(const j of joueurs){
+        ctx.beginPath();
+        ctx.fillStyle=j.color;
+        ctx.arc(pxX(j.x), pxY(j.y), 10, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle="black";
+        ctx.stroke();
+
+		// vecteur "local" (repère joueur A)
+		const dx_local = 15;
+		const dy_local = j.droitier ? 10 : -10;
+
+		// rotation 180° si équipe B
+		const rot = j.team === "A" ? 1 : -1;
+
+		const dx = dx_local * rot;
+		const dy = dy_local * rot;
+
+		ctx.beginPath();
+		ctx.moveTo(pxX(j.x), pxY(j.y));
+		ctx.lineTo(pxX(j.x) + dx, pxY(j.y) + dy);
+		ctx.stroke();
+    }
+}
+
+// Volant
+function drawVolant(){
+    const {type, x, y, radius} = volant;
+    ctx.fillStyle = type==="haut"? "green" : type==="à plat"? "blue":"red";
+
+    ctx.beginPath();
+    if(type==="haut"){
+        ctx.moveTo(pxX(x), pxY(y)-10);
+        ctx.lineTo(pxX(x)-8, pxY(y)+8);
+        ctx.lineTo(pxX(x)+8, pxY(y)+8);
+    } else if(type==="bas"){
+        ctx.moveTo(pxX(x), pxY(y)+10);
+        ctx.lineTo(pxX(x)-8, pxY(y)-8);
+        ctx.lineTo(pxX(x)+8, pxY(y)-8);
+    } else{
+        ctx.rect(pxX(x)-8, pxY(y)-8, 16, 16);
+    }
+    ctx.fill();
+    ctx.strokeStyle="black";
+    ctx.stroke();
+
+    // demi-droites vers adversaires
+    const adversaires = x<FILET_X? joueurs.filter(j=>j.team==="B") : joueurs.filter(j=>j.team==="A");
+    ctx.strokeStyle=ctx.fillStyle;
+    ctx.lineWidth=1;
+    adversaires.forEach(j=>{
+        const dx = j.x - x;
+        const dy = j.y - y;
+        const facteur = 3;
+        ctx.beginPath();
+        ctx.setLineDash([5,5]);
+        ctx.moveTo(pxX(x - dx*facteur), pxY(y - dy*facteur));
+        ctx.lineTo(pxX(j.x), pxY(j.y));
+        ctx.stroke();
+        ctx.setLineDash([]);
+    });
+}
+
+// Dessin complet
+function draw(){ drawTerrain(); drawJoueurs(); drawVolant(); }
+draw();
+
+// Drag
+canvas.addEventListener("mousedown",(e)=>{
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left)/scaleX;
+    const my = (e.clientY - rect.top)/scaleY;
+
+    const dxv = mx - volant.x;
+    const dyv = my - volant.y;
+    if(Math.sqrt(dxv*dxv+dyv*dyv)<0.3){ dragObject=volant; offsetX=dxv; offsetY=dyv; return;}
+
+    for(const j of joueurs){
+        const dx = mx-j.x;
+        const dy = my-j.y;
+        if(Math.sqrt(dx*dx+dy*dy)<0.5){ dragObject=j; offsetX=dx; offsetY=dy; return;}
+    }
+});
+canvas.addEventListener("mousemove",(e)=>{
+    if(dragObject){
+        const rect = canvas.getBoundingClientRect();
+        dragObject.x = (e.clientX-rect.left)/scaleX - offsetX;
+        dragObject.y = (e.clientY-rect.top)/scaleY - offsetY;
+        draw();
+    }
+});
+canvas.addEventListener("mouseup",()=>{ dragObject=null; });
+canvas.addEventListener("mouseleave",()=>{ dragObject=null; });
+
+// Changement type volant
+document.getElementById("volantType").addEventListener("change",(e)=>{
+    volant.type = e.target.value;
+    draw();
+});
+
+// Changement orientation joueur
+["A1","A2","B1","B2"].forEach((id,index)=>{
+    document.getElementById(id).addEventListener("change",(e)=>{
+        joueurs[index].droitier = e.target.value==="droitier";
+        draw();
+    });
+});
+
+// Fonction aléatoire pour placer joueurs et volant
+function randomizePositions(){
+    // Joueurs A à gauche
+    joueurs[0].x = Math.random()*((FILET_X-1)-0.5)+0.5;
+    joueurs[0].y = Math.random()*(LARGEUR_DOUBLE-1)+0.5;
+    joueurs[1].x = Math.random()*((FILET_X-1)-0.5)+0.5;
+    joueurs[1].y = Math.random()*(LARGEUR_DOUBLE-1)+0.5;
+
+    // Joueurs B à droite
+    joueurs[2].x = Math.random()*((LONGUEUR-0.5)-(FILET_X+0.5))+(FILET_X+0.5);
+    joueurs[2].y = Math.random()*(LARGEUR_DOUBLE-1)+0.5;
+    joueurs[3].x = Math.random()*((LONGUEUR-0.5)-(FILET_X+0.5))+(FILET_X+0.5);
+    joueurs[3].y = Math.random()*(LARGEUR_DOUBLE-1)+0.5;
+
+    // Volant partout
+    volant.x = Math.random()*(LONGUEUR-1)+0.5;
+    volant.y = Math.random()*(LARGEUR_DOUBLE-1)+0.5;
+
+    draw();
+}
+
+// Bouton aléatoire
+document.getElementById("randomizeBtn").addEventListener("click", randomizePositions);
+</script>
+</body>
+</html>
